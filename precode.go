@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -45,18 +44,18 @@ var tasks = map[string]Task{
 // Ниже напишите обработчики для каждого эндпоинта
 // ...
 func GetTasks(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	marshOut,err := json.Marshal(tasks)
 	if err != nil{
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
 	w.Write(marshOut)
 }
 
-func GetTasksId (w http.ResponseWriter, r *http.Request){
-	urrl:=r.URL.String()
-	str:=strings.Split(urrl, "/")
-	id:=str[len(str)-1]
+func GetTask (w http.ResponseWriter, r *http.Request){
+	id := chi.URLParam(r, "id")
 	task,ok:=tasks[id]
 	if !ok{
 		w.WriteHeader(http.StatusBadRequest)
@@ -64,16 +63,16 @@ func GetTasksId (w http.ResponseWriter, r *http.Request){
 	}
 	marshOut,err := json.Marshal(task)
 	if err != nil{
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
 	w.Write(marshOut)
 }
 
 func DeleteTaskId (w http.ResponseWriter, r *http.Request){
-	urrl:=r.URL.String()
-	str:=strings.Split(urrl, "/")
-	id:=str[len(str)-1]
+	w.Header().Set("Content-Type", "application/json")
+	id := chi.URLParam(r, "id")
 	_,ok:=tasks[id]
 	if !ok{
 		w.WriteHeader(http.StatusBadRequest)
@@ -99,6 +98,12 @@ func PostTasks(w http.ResponseWriter, r *http.Request){
         return
     }
 
+	_,ok:=tasks[task.ID]
+	if ok{
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
     tasks[task.ID] = task
 
     w.Header().Set("Content-Type", "application/json")
@@ -112,7 +117,7 @@ func main() {
 	// ...
 	r.Get("/tasks", GetTasks)
 	r.Post("/tasks", PostTasks)
-	r.Get("/tasks/{id}", GetTasksId)
+	r.Get("/tasks/{id}", GetTask)
 	r.Delete("/tasks/{id}", DeleteTaskId)
 	if err := http.ListenAndServe(":8080", r); err != nil {
 		fmt.Printf("Ошибка при запуске сервера: %s", err.Error())
